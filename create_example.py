@@ -41,30 +41,42 @@ for size in [12, 24, 48]:
             continue
         # if i > 89:
         #     break
-        if i > 2000:
-            break
+        # if i > 2000:
+        #     break
         try:
             box = box.strip().split()
             landmarks = landmarks.strip().split()
-            # 算出样本标签的宽高
-            w_box, h_box = int(box[3]), int(box[4])
-            # 算出样本五官的宽距与高距
-            w_landmarks, h_landmarks = int(landmarks[9]) - int(landmarks[1]), int(landmarks[10]) - int(
-                landmarks[2])
-            # 算出样本五官的中心点
-            center_x, center_y = int(int(landmarks[1]) + 0.5 * w_landmarks), int(
-                int(landmarks[2]) + 0.5 * h_landmarks)
-            # 根据样本标签的宽高和五官的宽距与高距算出平均样本宽高
-            w_average, h_average = int((w_box + w_landmarks) / 2), int((h_box + h_landmarks) / 2)
             img_path = os.path.join(image_path, box[0].strip())
             with image.open(img_path) as img:
                 img_w, img_h = img.size
-                x1 = float(box[1].strip())
-                y1 = float(box[2].strip())
-                w = float(box[3].strip())
-                h = float(box[4].strip())
-                x2 = x1 + w
-                y2 = y1 + h
+                # 算出样本标签的宽高
+                w_box, h_box = float(box[3]), float(box[4])
+                # 算出样本五官的宽距与高距
+                w_landmarks, h_landmarks = float(landmarks[9]) - float(landmarks[1]), float(landmarks[10]) - float(
+                    landmarks[2])
+                # 算出样本五官的中心点
+                center_x, center_y = float(float(landmarks[1]) + 0.5 * w_landmarks), float(
+                    float(landmarks[2]) + 0.5 * h_landmarks)
+                # 根据样本标签的宽高和五官的宽距与高距算出平均样本宽高
+                w_average, h_average = float((w_box + w_landmarks) / 2), float((h_box + h_landmarks) / 2)
+                x1 = float(center_x - 0.6 * w_average)
+                y1 = float(center_y - 0.72 * h_average)
+                w = w_box
+                h = h_box
+                x2 = float(center_x + 0.65 * w_average)
+                y2 = float(center_y + 0.58 * h_average)
+
+                # 五官坐标点
+                px1 = float(landmarks[1].strip())
+                py1 = float(landmarks[2].strip())
+                px2 = float(landmarks[3].strip())
+                py2 = float(landmarks[4].strip())
+                px3 = float(landmarks[5].strip())
+                py3 = float(landmarks[6].strip())
+                px4 = float(landmarks[7].strip())
+                py4 = float(landmarks[8].strip())
+                px5 = float(landmarks[9].strip())
+                py5 = float(landmarks[10].strip())
 
                 if max(w, h) < 40 or w < 0 or h < 0 or x1 < 0 or y1 < 0:
                     continue
@@ -76,7 +88,7 @@ for size in [12, 24, 48]:
                 center_y = y1 + h / 2
 
                 # for _ in range(9):
-                for _ in range(16):
+                for _ in range(18):
                     # 让中心点有少许偏移
                     # w_randint = np.random.randint(-w * 0.2, w * 0.2)
                     # h_randint = np.random.randint(-h * 0.2, h * 0.2)
@@ -97,6 +109,19 @@ for size in [12, 24, 48]:
                     offset_y1 = (y1 - y1_new) / rectangle_length
                     offset_x2 = (x2 - x2_new) / rectangle_length
                     offset_y2 = (y2 - y2_new) / rectangle_length
+
+                    # 计算五官相对标签左上角的偏移量
+                    offset_px1 = (px1 - x1_new) / rectangle_length
+                    offset_py1 = (py1 - y1_new) / rectangle_length
+                    offset_px2 = (px2 - x1_new) / rectangle_length
+                    offset_py2 = (py2 - y1_new) / rectangle_length
+                    offset_px3 = (px3 - x1_new) / rectangle_length
+                    offset_py3 = (py3 - y1_new) / rectangle_length
+                    offset_px4 = (px4 - x1_new) / rectangle_length
+                    offset_py4 = (py4 - y1_new) / rectangle_length
+                    offset_px5 = (px5 - x1_new) / rectangle_length
+                    offset_py5 = (py5 - y1_new) / rectangle_length
+
                     # 将制作的样本用list保存
                     crop_box = [x1_new, y1_new, x2_new, y2_new]
 
@@ -107,28 +132,31 @@ for size in [12, 24, 48]:
                     # 计算IOU来判断将样本保存为哪种类型
                     rate = utils.IOU(box, crop_box)[0]
                     # if rate > 0.68:
-                    if rate > 0.64:
+                    if rate > 0.60:
                         positive_text.write(
-                            "positive/{0}.jpg {1} {2} {3} {4} {5}\n".format(positive_count, offset_x1, offset_y1,
-                                                                            offset_x1,
-                                                                            offset_y2, 1))
+                            "positive/{0}.jpg {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15}\n"
+                                .format(positive_count, 1, offset_x1, offset_y1, offset_x1, offset_y2, offset_px1,
+                                        offset_py1, offset_px2, offset_py2, offset_px3, offset_py3, offset_px4,
+                                        offset_py4, offset_px5, offset_py5))
                         # 刷新缓存区，防止进程意外退出或正常退出时而未执行文件的close方法，缓冲区中的内容将会丢失。
                         positive_text.flush()
                         crop_img_resize.save(os.path.join(positive_image_path, "{}.jpg".format(positive_count)))
                         positive_count += 1
                     # elif rate > 0.45 and rate < 0.53:
-                    elif 0.23 < rate < 0.31:
+                    elif 0.23 < rate < 0.26:
                         part_text.write(
-                            "part/{0}.jpg {1} {2} {3} {4} {5}\n".format(part_count, offset_x1, offset_y1, offset_x1,
-                                                                        offset_y2, 2))
+                            "part/{0}.jpg {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15}\n"
+                                .format(part_count, 2, offset_x1, offset_y1, offset_x1, offset_y2, offset_px1,
+                                        offset_py1, offset_px2, offset_py2, offset_px3, offset_py3, offset_px4,
+                                        offset_py4, offset_px5, offset_py5))
                         part_text.flush()
                         crop_img_resize.save(os.path.join(part_image_path, "{}.jpg".format(part_count)))
                         part_count += 1
-                    elif rate < 0.1:
-                        negative_text.write("negative/{0}.jpg 0 0 0 0 0\n".format(negative_count))
-                        negative_text.flush()
-                        crop_img_resize.save(os.path.join(negative_image_path, "{}.jpg".format(negative_count)))
-                        negative_count += 1
+                    # elif rate < 0.1:
+                    #     negative_text.write("negative/{0}.jpg 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n".format(negative_count))
+                    #     negative_text.flush()
+                    #     crop_img_resize.save(os.path.join(negative_image_path, "{}.jpg".format(negative_count)))
+                    #     negative_count += 1
                 # 生成负样本
                 # for _ in range(4):
                 for _ in range(5):
@@ -143,7 +171,7 @@ for size in [12, 24, 48]:
                     if rate_negative < 0.1:
                         crop_img_negative = img.crop(crop_box_negative)
                         crop_img_resize_negative = crop_img_negative.resize((size, size))
-                        negative_text.write("negative/{0}.jpg 0 0 0 0 0\n".format(negative_count))
+                        negative_text.write("negative/{0}.jpg 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n".format(negative_count))
                         negative_text.flush()
                         crop_img_resize_negative.save(
                             os.path.join(negative_image_path, "{}.jpg".format(negative_count)))

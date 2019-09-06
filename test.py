@@ -115,8 +115,8 @@ if __name__ == '__main__':
             img = Image.open(os.path.join(img_path, box[0]))
             img_draw = ImageDraw.ImageDraw(img)
             img_draw.rectangle(
-                (int(center_x - 0.6 * w_average), int(center_y - 0.72 * h_average), int(center_x + 0.65 * w_average),
-                 int(center_y + 0.58 * h_average)), outline="green", width=3)
+                (float(center_x - 0.6 * w_average), float(center_y - 0.72 * h_average), float(center_x + 0.65 * w_average),
+                 float(center_y + 0.58 * h_average)), outline="green", width=3)
             img_draw.point((int(landmarks[1]), int(landmarks[2])), fill="red")
             img_draw.point((int(landmarks[3]), int(landmarks[4])), fill="red")
             img_draw.point((int(landmarks[5]), int(landmarks[6])), fill="red")
