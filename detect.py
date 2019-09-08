@@ -170,13 +170,14 @@ class Detector:
         if self.isCuda:
             img_dataset = img_dataset.cuda()
         with torch.no_grad():
-            confidence, offset = self.onet(img_dataset)
-        confidence = confidence.cpu().data.numpy()
-        offset = offset.cpu().data.numpy()
+            confidence, offset, landmarks = self.onet(img_dataset)
+        confidence = confidence.cpu().detach().numpy()
+        offset = offset.cpu().detach().numpy()
+        landmarks = landmarks.cpu().detach().numpy()
 
         boxes = []
         # indexs, _ = np.where(confidence > 0.97)
-        indexs, _ = np.where(confidence > 0.95)
+        indexs, _ = np.where(confidence > 0.97)
         if indexs.shape[0] == 0:
             return np.array([])
         for index in indexs:
@@ -194,7 +195,15 @@ class Detector:
             x2_real = x2_ + w * offset[index][2]
             y2_real = y2_ + h * offset[index][3]
 
-            boxes.append([x1_real, y1_real, x2_real, y2_real, confidence[index][0]])
+            landmarks_x1, landmarks_y1 = x1_ + w * landmarks[index][0], y1_ + h * landmarks[index][1]
+            landmarks_x2, landmarks_y2 = x1_ + w * landmarks[index][2], y1_ + h * landmarks[index][3]
+            landmarks_x3, landmarks_y3 = x1_ + w * landmarks[index][4], y1_ + h * landmarks[index][5]
+            landmarks_x4, landmarks_y4 = x1_ + w * landmarks[index][6], y1_ + h * landmarks[index][7]
+            landmarks_x5, landmarks_y5 = x1_ + w * landmarks[index][8], y1_ + h * landmarks[index][9]
+
+            boxes.append([x1_real, y1_real, x2_real, y2_real, confidence[index][0], landmarks_x1, landmarks_y1,
+                          landmarks_x2, landmarks_y2, landmarks_x3, landmarks_y3, landmarks_x4, landmarks_y4,
+                          landmarks_x5, landmarks_y5])
 
         return utils.NMS(np.stack(boxes), 0.7, isMin=True)
 
@@ -239,10 +248,22 @@ if __name__ == '__main__':
                 x2 = int(box[2])
                 y2 = int(box[3])
                 w, h = x2 - x1, y2 - y1
-                x_center = x1 + 0.5 * w
-                y_center = y1 + 0.5 * h
-                x2 = x_center + 0.3 * w
-                y2 = y_center + 0.3 * h
+                landmarks_x1, landmarks_y1 = int(box[5]), int(box[6])
+                landmarks_x2, landmarks_y2 = int(box[7]), int(box[8])
+                landmarks_x3, landmarks_y3 = int(box[9]), int(box[10])
+                landmarks_x4, landmarks_y4 = int(box[11]), int(box[12])
+                landmarks_x5, landmarks_y5 = int(box[13]), int(box[14])
+                landmarks_w1 = landmarks_x2 - landmarks_x1
+                landmarks_w2 = landmarks_x5 - landmarks_x4
+                landmarks_h1 = landmarks_y2 - landmarks_y1
+                landmarks_h2 = landmarks_y5 - landmarks_y4
+                landmarks_w_average = (landmarks_w1 + landmarks_w2) / 2
+                landmarks_h_average = (landmarks_h1 + landmarks_h2) / 2
+                w_avergae = (landmarks_w_average + w) / 2
+                h_avergae = (landmarks_h_average + h) / 2
+                x1 = landmarks_x3 - 0.6 * w_avergae
+                y1 = landmarks_y3 - h_avergae
+                x2 = x1 + 1.2 * w_avergae
+                y2 = y1 + 1.8 * h_avergae
                 imDraw.rectangle((x1, y1, x2, y2), outline='red', width=3)
-                # imDraw.point(xy=(x_center, y_center), fill='red')
             img.show()

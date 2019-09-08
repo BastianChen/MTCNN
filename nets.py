@@ -180,14 +180,9 @@ class ONet(nn.Module):
 
         self.offset = nn.Linear(256, 4)
         self.confidence = nn.Linear(256, 1)
+        self.landmarks = nn.Linear(256, 10)
 
     def forward(self, data):
-        # y1 = self.layer1(data)
-        # y1 = y1.reshape(data.size(0), -1)
-        # y2 = self.layer2(y1)
-        # offset = self.offset(y2)
-        # confidence = F.sigmoid(self.confidence(y2))
-        # return confidence, offset
         y1 = self.layer1(data)
         y2 = self.layer2(y1)
         y3 = self.layer3(y2)
@@ -195,7 +190,8 @@ class ONet(nn.Module):
         y4 = self.layer4(y3)
         offset = self.offset(y4)
         confidence = F.sigmoid(self.confidence(y4))
-        return confidence, offset
+        landmarks = self.landmarks(y4)
+        return confidence, offset, landmarks
 
 
 if __name__ == '__main__':

@@ -24,15 +24,16 @@ class datasets(Dataset):
     def __getitem__(self, index):
         strs = self.dataset[index].strip().split(" ")
         img_path = os.path.join(self.path, strs[0])
-        # img_path = os.path.join(self.path + "/image", strs[0])
         img_data = self.trans(np.array(Image.open(img_path)))
-        # confidence = torch.Tensor(np.array([int(strs[1])]))
-        # offset = torch.Tensor(np.array([float(strs[2]), float(strs[3]), float(strs[4]), float(strs[5])]))
-        confidence = torch.Tensor(np.array([int(strs[5])]))
-        offset = torch.Tensor(np.array([float(strs[1]), float(strs[2]), float(strs[3]), float(strs[4])]))
-        return img_data, confidence, offset
+        confidence = torch.Tensor(np.array([int(strs[1])]))
+        offset = torch.Tensor(np.array([float(strs[2]), float(strs[3]), float(strs[4]), float(strs[5])]))
+        landmarks = torch.Tensor(
+            np.array([float(strs[6]), float(strs[7]), float(strs[8]), float(strs[9]), float(strs[10]), float(strs[11]),
+                      float(strs[12]), float(strs[13]), float(strs[14]), float(strs[15])]))
+        return img_data, confidence, offset, landmarks
 
 
 if __name__ == '__main__':
-    data = datasets(r"F:\Photo_example\CelebA\sample\12")[0]
+    # data = datasets(r"F:\Photo_example\CelebA\sample\12")[0]
+    data = datasets(r"C:\sample\12")[0]
     print(data)

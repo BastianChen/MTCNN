@@ -25,15 +25,17 @@ class Trainer:
     def train(self):
         while True:
             previous_loss = 0
-            for i, (image, confidence, offset) in enumerate(self.dataset):
+            for i, (image, confidence, offset, landmarks) in enumerate(self.dataset):
                 if self.isCuda:
                     image = image.cuda()
                     confidence = confidence.cuda()
                     offset = offset.cuda()
-                out_confidence, out_offset = self.net(image)
+                    landmarks = landmarks.cuda()
+                out_confidence, out_offset, out_landmarks = self.net(image)
                 # 将输出的置信度的格式转换成与标签一样
                 out_confidence = out_confidence.reshape(-1, 1)
                 out_offset = out_offset.reshape(-1, 4)
+                out_landmarks = out_landmarks.reshape(-1, 10)
                 # 需要根据训练的目标删除个别样本
                 # 使用正负样本训练置信度
                 confidence_mask = torch.lt(confidence, 2)
@@ -45,7 +47,14 @@ class Trainer:
                 offset_select = torch.masked_select(offset, offset_mask)
                 out_offset = torch.masked_select(out_offset, offset_mask)
                 offset_loss = self.offset_loss_function(out_offset, offset_select)
-                total_loss = confidence_loss + offset_loss
+
+                # 训练五官坐标仅在O网络使用
+                landmarks_mask = torch.gt(confidence, 0)
+                landmarks_select = torch.masked_select(landmarks, landmarks_mask)
+                out_landmarks = torch.masked_select(out_landmarks, landmarks_mask)
+                landmarks_loss = self.offset_loss_function(out_landmarks, landmarks_select)
+
+                total_loss = confidence_loss + offset_loss + landmarks_loss
 
                 self.optimizer.zero_grad()
                 total_loss.backward()
@@ -56,9 +65,10 @@ class Trainer:
                 #                                                                       confidence_loss.item(),
                 #                                                                       offset_loss.item()))
                 #     torch.save(self.net.state_dict(), self.save_path)
-                print("total_loss:{0},confidence_loss:{1},offset_loss:{2}".format(total_loss.item(),
-                                                                                  confidence_loss.item(),
-                                                                                  offset_loss.item()))
+                print("total_loss:{0},confidence_loss:{1},offset_loss:{2},landmarks_loss:{3}".format(total_loss.item(),
+                                                                                                     confidence_loss.item(),
+                                                                                                     offset_loss.item(),
+                                                                                                     landmarks_loss.item()))
                 if total_loss.item() < previous_loss:
                     previous_loss = total_loss.item()
                     torch.save(self.net.state_dict(), self.save_path)
