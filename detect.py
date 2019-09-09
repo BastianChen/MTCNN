@@ -11,15 +11,11 @@ import os
 
 class Detector:
     def __init__(self, pnet_path, rnet_path, onet_path, isCuda=True):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.isCuda = isCuda
-        self.pnet = nets.PNet()
-        self.rnet = nets.RNet()
-        self.onet = nets.ONet()
-
-        if isCuda:
-            self.pnet.cuda()
-            self.rnet.cuda()
-            self.onet.cuda()
+        self.pnet = nets.PNet().to(self.device)
+        self.rnet = nets.RNet().to(self.device)
+        self.onet = nets.ONet().to(self.device)
 
         self.pnet.load_state_dict(torch.load(pnet_path))
         self.rnet.load_state_dict(torch.load(rnet_path))
@@ -41,7 +37,6 @@ class Detector:
             return np.array([])
         end_time = time.time()
         t_pnet = end_time - start_time
-
         start_time = time.time()
         rnet_boxes = self.rnet_detect(image, pnet_boxes)
         if rnet_boxes.shape[0] == 0:
@@ -71,11 +66,7 @@ class Detector:
         scale = scale_new = 1
 
         while min_length > 12:
-            # 用于存放所有符合阈值的真实框
-            boxes = []
-            img_data = self.trans(image)
-            if self.isCuda:
-                img_data = img_data.cuda()
+            img_data = self.trans(image).to(self.device)
             # 升维，因为存在批次这一维度
             img_data.unsqueeze_(0)
             with torch.no_grad():
@@ -88,9 +79,8 @@ class Detector:
             if indexs.shape[0] == 0:
                 nms = np.array([])
             else:
-                for index in indexs:
-                    boxes.append(self.backToImage(index, offset, confidence[index[0], index[1]], scale_new))
-                nms = utils.NMS(np.stack(boxes), 0.5)
+                boxes = self.backToImage(np.array(indexs, dtype=np.float), offset, scale_new, confidence)
+                nms = utils.NMS(boxes, 0.5)
             boxes_nms_all.extend(nms)
             scale *= 0.7
             w_ = int(w * scale)
@@ -117,40 +107,38 @@ class Detector:
             img_data = self.trans(img)
             img_dataset.append(img_data)
 
-        img_dataset = torch.stack(img_dataset)
-        if self.isCuda:
-            img_dataset = img_dataset.cuda()
+        img_dataset = torch.stack(img_dataset).to(self.device)
 
         with torch.no_grad():
             confidence, offset = self.rnet(img_dataset)
 
-        confidence = confidence.cpu().data.numpy()
-        offset = offset.cpu().data.numpy()
+        confidence = confidence.cpu().detach().numpy()
+        offset = offset.cpu().detach().numpy()
 
-        boxes = []
-        # indexs, _ = np.where(confidence > 0.6)
         indexs, _ = np.where(confidence > 0.6)
         if indexs.shape[0] == 0:
             return np.array([])
-        for index in indexs:
+        else:
+            boxes = pnet_boxes[indexs]
             # 直接返回到P网络传入的真实框
-            box = pnet_boxes[index]
-            x1_ = int(box[0])
-            y1_ = int(box[1])
-            x2_ = int(box[2])
-            y2_ = int(box[3])
+            x1_array = boxes[:, 0]
+            y1_array = boxes[:, 1]
+            x2_array = boxes[:, 2]
+            y2_array = boxes[:, 3]
 
-            w = x2_ - x1_
-            h = y2_ - y1_
+            w_array = x2_array - x1_array
+            h_array = y2_array - y1_array
 
-            x1_real = x1_ + w * offset[index][0]
-            y1_real = y1_ + h * offset[index][1]
-            x2_real = x2_ + w * offset[index][2]
-            y2_real = y2_ + h * offset[index][3]
+            offset = offset[indexs]
+            confidence = confidence[indexs]
 
-            boxes.append([x1_real, y1_real, x2_real, y2_real, confidence[index][0]])
+            x1_real = x1_array + w_array * offset[:, 0]
+            y1_real = y1_array + h_array * offset[:, 1]
+            x2_real = x2_array + w_array * offset[:, 2]
+            y2_real = y2_array + h_array * offset[:, 3]
 
-        return utils.NMS(np.stack(boxes), 0.5)
+            box = np.array([x1_real, y1_real, x2_real, y2_real, confidence[:, 0]]).T
+        return utils.NMS(box, 0.5)
 
     def onet_detect(self, image, rnet_boxes):
         img_dataset = []
@@ -166,76 +154,76 @@ class Detector:
             img_data = self.trans(img)
             img_dataset.append(img_data)
 
-        img_dataset = torch.stack(img_dataset)
-        if self.isCuda:
-            img_dataset = img_dataset.cuda()
+        img_dataset = torch.stack(img_dataset).to(self.device)
+
         with torch.no_grad():
             confidence, offset, landmarks = self.onet(img_dataset)
         confidence = confidence.cpu().detach().numpy()
         offset = offset.cpu().detach().numpy()
         landmarks = landmarks.cpu().detach().numpy()
 
-        boxes = []
-        # indexs, _ = np.where(confidence > 0.97)
         indexs, _ = np.where(confidence > 0.97)
         if indexs.shape[0] == 0:
             return np.array([])
-        for index in indexs:
-            box = rnet_boxes[index]
-            x1_ = int(box[0])
-            y1_ = int(box[1])
-            x2_ = int(box[2])
-            y2_ = int(box[3])
+        else:
+            boxes = rnet_boxes[indexs]
+            x1_array = boxes[:, 0]
+            y1_array = boxes[:, 1]
+            x2_array = boxes[:, 2]
+            y2_array = boxes[:, 3]
 
-            w = x2_ - x1_
-            h = y2_ - y1_
+            w_array = x2_array - x1_array
+            h_array = y2_array - y1_array
 
-            x1_real = x1_ + w * offset[index][0]
-            y1_real = y1_ + h * offset[index][1]
-            x2_real = x2_ + w * offset[index][2]
-            y2_real = y2_ + h * offset[index][3]
+            offset = offset[indexs]
+            confidence = confidence[indexs]
+            landmarks = landmarks[indexs]
 
-            landmarks_x1, landmarks_y1 = x1_ + w * landmarks[index][0], y1_ + h * landmarks[index][1]
-            landmarks_x2, landmarks_y2 = x1_ + w * landmarks[index][2], y1_ + h * landmarks[index][3]
-            landmarks_x3, landmarks_y3 = x1_ + w * landmarks[index][4], y1_ + h * landmarks[index][5]
-            landmarks_x4, landmarks_y4 = x1_ + w * landmarks[index][6], y1_ + h * landmarks[index][7]
-            landmarks_x5, landmarks_y5 = x1_ + w * landmarks[index][8], y1_ + h * landmarks[index][9]
+            x1_real = x1_array + w_array * offset[:, 0]
+            y1_real = y1_array + h_array * offset[:, 1]
+            x2_real = x2_array + w_array * offset[:, 2]
+            y2_real = y2_array + h_array * offset[:, 3]
 
-            boxes.append([x1_real, y1_real, x2_real, y2_real, confidence[index][0], landmarks_x1, landmarks_y1,
-                          landmarks_x2, landmarks_y2, landmarks_x3, landmarks_y3, landmarks_x4, landmarks_y4,
-                          landmarks_x5, landmarks_y5])
+            landmarks_x1, landmarks_y1 = x1_array + w_array * landmarks[:, 0], y1_array + h_array * landmarks[:, 1]
+            landmarks_x2, landmarks_y2 = x1_array + w_array * landmarks[:, 2], y1_array + h_array * landmarks[:, 3]
+            landmarks_x3, landmarks_y3 = x1_array + w_array * landmarks[:, 4], y1_array + h_array * landmarks[:, 5]
+            landmarks_x4, landmarks_y4 = x1_array + w_array * landmarks[:, 6], y1_array + h_array * landmarks[:, 7]
+            landmarks_x5, landmarks_y5 = x1_array + w_array * landmarks[:, 8], y1_array + h_array * landmarks[:, 9]
 
-        return utils.NMS(np.stack(boxes), 0.7, isMin=True)
+            box = np.array([x1_real, y1_real, x2_real, y2_real, confidence[:, 0], landmarks_x1, landmarks_y1,
+                            landmarks_x2, landmarks_y2, landmarks_x3, landmarks_y3, landmarks_x4, landmarks_y4,
+                            landmarks_x5, landmarks_y5]).T
+
+        return utils.NMS(box, 0.7, isMin=True)
 
     # 用于根据偏移量还原真实框到原图
-    def backToImage(self, index, offset, confidence, scale, stride=2, side_len=12):
-        x1 = float(index[1] * stride) / scale
-        y1 = float(index[0] * stride) / scale
-        x2 = float(index[1] * stride + side_len) / scale
-        y2 = float(index[0] * stride + side_len) / scale
+    def backToImage(self, index, offset, scale, confidence, stride=2, side_len=12):
+        x1_array = (index[:, 1] * stride) / scale
+        y1_array = (index[:, 0] * stride) / scale
+        x2_array = (index[:, 1] * stride + side_len) / scale
+        y2_array = (index[:, 0] * stride + side_len) / scale
 
         # 算出建议框的w和h，用于后面根据偏移量算出真实框的坐标
-        w = x2 - x1
-        h = y2 - y1
+        w_array = x2_array - x1_array
+        h_array = y2_array - y1_array
 
-        offset = offset[:, index[0], index[1]]
-        x1_real = x1 + w * offset[0]
-        y1_real = y1 + h * offset[1]
-        x2_real = x2 + w * offset[2]
-        y2_real = y2 + h * offset[3]
+        offset = np.array(offset[:, index[:, 0], index[:, 1]])
+        confidence = np.array(confidence[index[:, 0], index[:, 1]])
+
+        x1_real = x1_array + w_array * offset[0]
+        y1_real = y1_array + h_array * offset[1]
+        x2_real = x2_array + w_array * offset[2]
+        y2_real = y2_array + h_array * offset[3]
 
         # 返回真实框
-        return [x1_real, y1_real, x2_real, y2_real, confidence]
+        return np.array([x1_real, y1_real, x2_real, y2_real, confidence]).T
 
 
 if __name__ == '__main__':
-    if torch.cuda.is_available():
-        isCuda = True
-    else:
-        isCuda = False
-    detector = Detector(r"models/pnet.pth", r"models/rnet.pth", r"models/onet.pth", isCuda)
+    detector = Detector(r"models/pnet.pth", r"models/rnet.pth", r"models/onet.pth")
     # detector = Detector(r"models_old/pnet.pth", r"models_old/rnet.pth", r"models_old/onet.pth", isCuda)
-    image_path = r"F:\Photo_example\CelebA\test_image"
+    # image_path = r"F:\Photo_example\CelebA\test_image"
+    image_path = r"C:\Users\Administrator\Desktop\test"
     image_list = os.listdir(image_path)
 
     for path in image_list:
