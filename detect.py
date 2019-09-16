@@ -70,7 +70,7 @@ class Detector:
             # 升维，因为存在批次这一维度
             img_data.unsqueeze_(0)
             with torch.no_grad():
-                confidence, offset = self.pnet(img_data)
+                confidence, offset, landmarks = self.pnet(img_data)
             confidence = confidence[0][0].cpu().detach()
             offset = offset[0].cpu().detach()
             # 根据阈值先删除掉一些置信度低的候选框,并返回符合要求的索引
@@ -110,7 +110,7 @@ class Detector:
         img_dataset = torch.stack(img_dataset).to(self.device)
 
         with torch.no_grad():
-            confidence, offset = self.rnet(img_dataset)
+            confidence, offset, landmarks = self.rnet(img_dataset)
 
         confidence = confidence.cpu().detach().numpy()
         offset = offset.cpu().detach().numpy()
@@ -166,34 +166,76 @@ class Detector:
         if indexs.shape[0] == 0:
             return np.array([])
         else:
-            boxes = rnet_boxes[indexs]
-            x1_array = boxes[:, 0]
-            y1_array = boxes[:, 1]
-            x2_array = boxes[:, 2]
-            y2_array = boxes[:, 3]
+            boxes = []
+            # 判断关键点是否在建议框中
+            for index in indexs:
+                box = rnet_boxes[index]
+                offset_new = offset[index]
+                confidence_new = confidence[index]
+                landmark = landmarks[index]
 
-            w_array = x2_array - x1_array
-            h_array = y2_array - y1_array
+                x1 = box[0]
+                y1 = box[1]
+                x2 = box[2]
+                y2 = box[3]
 
-            offset = offset[indexs]
-            confidence = confidence[indexs]
-            landmarks = landmarks[indexs]
+                w = x2 - x1
+                h = y2 - y1
 
-            x1_real = x1_array + w_array * offset[:, 0]
-            y1_real = y1_array + h_array * offset[:, 1]
-            x2_real = x2_array + w_array * offset[:, 2]
-            y2_real = y2_array + h_array * offset[:, 3]
+                x1_real = x1 + w * offset_new[0]
+                y1_real = y1 + h * offset_new[1]
+                x2_real = x2 + w * offset_new[2]
+                y2_real = y2 + h * offset_new[3]
 
-            landmarks_x1, landmarks_y1 = x1_array + w_array * landmarks[:, 0], y1_array + h_array * landmarks[:, 1]
-            landmarks_x2, landmarks_y2 = x1_array + w_array * landmarks[:, 2], y1_array + h_array * landmarks[:, 3]
-            landmarks_x3, landmarks_y3 = x1_array + w_array * landmarks[:, 4], y1_array + h_array * landmarks[:, 5]
-            landmarks_x4, landmarks_y4 = x1_array + w_array * landmarks[:, 6], y1_array + h_array * landmarks[:, 7]
-            landmarks_x5, landmarks_y5 = x1_array + w_array * landmarks[:, 8], y1_array + h_array * landmarks[:, 9]
+                landmark_x1, landmark_y1 = landmark[0], landmark[1]
+                landmark_x2, landmark_y2 = landmark[2], landmark[3]
+                landmark_x3, landmark_y3 = landmark[4], landmark[5]
+                landmark_x4, landmark_y4 = landmark[6], landmark[7]
+                landmark_x5, landmark_y5 = landmark[8], landmark[9]
 
-            box = np.array([x1_real, y1_real, x2_real, y2_real, confidence[:, 0], landmarks_x1, landmarks_y1,
-                            landmarks_x2, landmarks_y2, landmarks_x3, landmarks_y3, landmarks_x4, landmarks_y4,
-                            landmarks_x5, landmarks_y5]).T
+                landmark_x1_real, landmark_y1_real = x1 + w * landmark_x1, y1 + h * landmark_y1
+                landmark_x2_real, landmark_y2_real = x1 + w * landmark_x2, y1 + h * landmark_y2
+                landmark_x3_real, landmark_y3_real = x1 + w * landmark_x3, y1 + h * landmark_y3
+                landmark_x4_real, landmark_y4_real = x1 + w * landmark_x4, y1 + h * landmark_y4
+                landmark_x5_real, landmark_y5_real = x1 + w * landmark_x5, y1 + h * landmark_y5
 
+                if (
+                        landmark_x1_real > x1_real and landmark_y1_real > y1_real and landmark_x2_real < x2_real and landmark_y2_real < y2_real) and (
+                        landmark_x3_real > x1_real and landmark_y3_real > y1_real and landmark_x3_real < x2_real and landmark_y3_real < y2_real) and (
+                        landmark_x4_real > x1_real and landmark_y4_real > y1_real and landmark_x5_real < x2_real and landmark_y5_real < y2_real):
+                    boxes.append(
+                        [x1_real, y1_real, x2_real, y2_real, confidence_new[0], landmark_x1_real, landmark_y1_real,
+                         landmark_x2_real, landmark_y2_real, landmark_x3_real, landmark_y3_real, landmark_x4_real,
+                         landmark_y4_real, landmark_x5_real, landmark_y5_real])
+            # 不判断关键点是否在建议框中
+            # boxes = rnet_boxes[indexs]
+            # x1_array = boxes[:, 0]
+            # y1_array = boxes[:, 1]
+            # x2_array = boxes[:, 2]
+            # y2_array = boxes[:, 3]
+            #
+            # w_array = x2_array - x1_array
+            # h_array = y2_array - y1_array
+            #
+            # offset = offset[indexs]
+            # confidence = confidence[indexs]
+            # landmarks = landmarks[indexs]
+            #
+            # x1_real = x1_array + w_array * offset[:, 0]
+            # y1_real = y1_array + h_array * offset[:, 1]
+            # x2_real = x2_array + w_array * offset[:, 2]
+            # y2_real = y2_array + h_array * offset[:, 3]
+            #
+            # landmarks_x1, landmarks_y1 = x1_array + w_array * landmarks[:, 0], y1_array + h_array * landmarks[:, 1]
+            # landmarks_x2, landmarks_y2 = x1_array + w_array * landmarks[:, 2], y1_array + h_array * landmarks[:, 3]
+            # landmarks_x3, landmarks_y3 = x1_array + w_array * landmarks[:, 4], y1_array + h_array * landmarks[:, 5]
+            # landmarks_x4, landmarks_y4 = x1_array + w_array * landmarks[:, 6], y1_array + h_array * landmarks[:, 7]
+            # landmarks_x5, landmarks_y5 = x1_array + w_array * landmarks[:, 8], y1_array + h_array * landmarks[:, 9]
+            #
+            # box = np.array([x1_real, y1_real, x2_real, y2_real, confidence[:, 0], landmarks_x1, landmarks_y1,
+            #                 landmarks_x2, landmarks_y2, landmarks_x3, landmarks_y3, landmarks_x4, landmarks_y4,
+            #                 landmarks_x5, landmarks_y5]).T
+        box = np.stack(boxes)
         return utils.NMS(box, 0.7, isMin=True)
 
     # 用于根据偏移量还原真实框到原图
@@ -220,8 +262,8 @@ class Detector:
 
 
 if __name__ == '__main__':
-    detector = Detector(r"models/pnet.pth", r"models/rnet.pth", r"models/onet.pth")
-    # detector = Detector(r"models_old/pnet.pth", r"models_old/rnet.pth", r"models_old/onet.pth", isCuda)
+    detector = Detector(r"models/pnet.pth", r"models/rnet.pth", r"models/onet.pth")  # 加了五个坐标点
+    # detector = Detector(r"models_old/pnet.pth", r"models_old/rnet.pth", r"models_old/onet.pth", isCuda)# 没加五个坐标点
     # image_path = r"F:\Photo_example\CelebA\test_image"
     image_path = r"C:\Users\Administrator\Desktop\test"
     image_list = os.listdir(image_path)

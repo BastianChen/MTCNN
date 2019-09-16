@@ -8,7 +8,6 @@ import PIL.ImageDraw as ImageDraw
 import os
 import time
 
-
 class Detector:
     def __init__(self, pnet_path, rnet_path, onet_path):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -210,10 +209,10 @@ if __name__ == '__main__':
             imgDraw.rectangle((x1, y1, x2, y2), outline="green", width=3)
         img_data.show()
 
-    # img = Image.open(r"C:\Users\Administrator\Desktop\test\微信图片_20190909124341.jpg")
-    # w, h = img.size
-    # img = img.resize((int(0.33 * w), int(0.33 * h)))
-    # img.save("{}.jpg".format(r"C:\Users\Administrator\Desktop\test\1.jpg"))
+        # img = Image.open(r"C:\Users\Administrator\Desktop\test\微信图片_20190909124341.jpg")
+        # w, h = img.size
+        # img = img.resize((int(0.33 * w), int(0.33 * h)))
+        # img.save("{}.jpg".format(r"C:\Users\Administrator\Desktop\test\1.jpg"))
 
 # if __name__ == '__main__':
 #     box_path = r"text/list_bbox_celeba.txt"

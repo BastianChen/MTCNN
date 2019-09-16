@@ -8,7 +8,7 @@ import os
 class Trainer:
     def __init__(self, net, dataset_path, save_path, isCuda=True):
         self.net = net
-        self.dataset = DataLoader(datasets(dataset_path), batch_size=100, shuffle=True, drop_last=True, num_workers=2)
+        self.dataset = DataLoader(datasets(dataset_path), batch_size=1000, shuffle=True, drop_last=True, num_workers=2)
         self.save_path = save_path
         self.isCuda = isCuda
 
@@ -17,6 +17,7 @@ class Trainer:
 
         self.confidence_loss_function = nn.BCELoss()
         self.offset_loss_function = nn.MSELoss()
+        self.landmarks_loss_function = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.net.parameters())
 
         if os.path.exists(save_path):
@@ -48,11 +49,11 @@ class Trainer:
                 out_offset = torch.masked_select(out_offset, offset_mask)
                 offset_loss = self.offset_loss_function(out_offset, offset_select)
 
-                # 训练五官坐标仅在O网络使用
+                # 训练五官坐标
                 landmarks_mask = torch.gt(confidence, 0)
                 landmarks_select = torch.masked_select(landmarks, landmarks_mask)
                 out_landmarks = torch.masked_select(out_landmarks, landmarks_mask)
-                landmarks_loss = self.offset_loss_function(out_landmarks, landmarks_select)
+                landmarks_loss = self.landmarks_loss_function(out_landmarks, landmarks_select)
 
                 total_loss = confidence_loss + offset_loss + landmarks_loss
 
@@ -61,9 +62,8 @@ class Trainer:
                 self.optimizer.step()
 
                 # if i % 10 == 0:
-                #     print("total_loss:{0},confidence_loss:{1},offset_loss:{2}".format(total_loss.item(),
-                #                                                                       confidence_loss.item(),
-                #                                                                       offset_loss.item()))
+                #     print("total_loss:{0},confidence_loss:{1},offset_loss:{2},landmarks_loss:{3}".format(
+                #         total_loss.item(), confidence_loss.item(), offset_loss.item(), landmarks_loss.item()))
                 #     torch.save(self.net.state_dict(), self.save_path)
                 print("total_loss:{0},confidence_loss:{1},offset_loss:{2},landmarks_loss:{3}".format(total_loss.item(),
                                                                                                      confidence_loss.item(),
