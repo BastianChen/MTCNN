@@ -136,8 +136,7 @@ class Detector:
             y1_real = y1_array + h_array * offset[:, 1]
             x2_real = x2_array + w_array * offset[:, 2]
             y2_real = y2_array + h_array * offset[:, 3]
-
-            box = np.array([x1_real, y1_real, x2_real, y2_real, confidence[:, 0]]).T
+            box = np.stack([x1_real, y1_real, x2_real, y2_real, confidence[:, 0]], axis=1)
         return utils.NMS(box, 0.5)
 
     def onet_detect(self, image, rnet_boxes):
@@ -232,9 +231,9 @@ class Detector:
             # landmarks_x4, landmarks_y4 = x1_array + w_array * landmarks[:, 6], y1_array + h_array * landmarks[:, 7]
             # landmarks_x5, landmarks_y5 = x1_array + w_array * landmarks[:, 8], y1_array + h_array * landmarks[:, 9]
             #
-            # box = np.array([x1_real, y1_real, x2_real, y2_real, confidence[:, 0], landmarks_x1, landmarks_y1,
+            # box = np.stack([x1_real, y1_real, x2_real, y2_real, confidence[:, 0], landmarks_x1, landmarks_y1,
             #                 landmarks_x2, landmarks_y2, landmarks_x3, landmarks_y3, landmarks_x4, landmarks_y4,
-            #                 landmarks_x5, landmarks_y5]).T
+            #                 landmarks_x5, landmarks_y5], axis=1)
         box = np.stack(boxes)
         return utils.NMS(box, 0.7, isMin=True)
 
@@ -258,7 +257,7 @@ class Detector:
         y2_real = y2_array + h_array * offset[3]
 
         # 返回真实框
-        return np.array([x1_real, y1_real, x2_real, y2_real, confidence]).T
+        return np.stack([x1_real, y1_real, x2_real, y2_real, confidence], axis=1)
 
 
 if __name__ == '__main__':
