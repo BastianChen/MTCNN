@@ -7,6 +7,7 @@ from torchvision import transforms
 import torch
 import time
 import os
+import cv2
 
 
 class Detector:
@@ -54,7 +55,7 @@ class Detector:
         t_sum = t_pnet + t_rnet + t_onet
 
         print("total:{0} pnet:{1} rnet:{2} onet:{3}".format(t_sum, t_pnet, t_rnet, t_onet))
-
+        # print("pnet:{0}".format(t_pnet))
         return onet_boxes
 
     def pnet_detect(self, image):
@@ -70,11 +71,10 @@ class Detector:
             # 升维，因为存在批次这一维度
             img_data.unsqueeze_(0)
             with torch.no_grad():
-                confidence, offset, landmarks = self.pnet(img_data)
+                confidence, offset = self.pnet(img_data)
             confidence = confidence[0][0].cpu().detach()
             offset = offset[0].cpu().detach()
             # 根据阈值先删除掉一些置信度低的候选框,并返回符合要求的索引
-            # indexs = torch.nonzero(torch.gt(confidence, 0.6))
             indexs = torch.nonzero(torch.gt(confidence, 0.6))
             if indexs.shape[0] == 0:
                 nms = np.array([])
@@ -110,12 +110,12 @@ class Detector:
         img_dataset = torch.stack(img_dataset).to(self.device)
 
         with torch.no_grad():
-            confidence, offset, landmarks = self.rnet(img_dataset)
+            confidence, offset, _ = self.rnet(img_dataset)
 
         confidence = confidence.cpu().detach().numpy()
         offset = offset.cpu().detach().numpy()
 
-        indexs, _ = np.where(confidence > 0.6)
+        indexs, _ = np.where(confidence > 0.54)
         if indexs.shape[0] == 0:
             return np.array([])
         else:
@@ -165,77 +165,84 @@ class Detector:
         if indexs.shape[0] == 0:
             return np.array([])
         else:
-            boxes = []
             # 判断关键点是否在建议框中
-            for index in indexs:
-                box = rnet_boxes[index]
-                offset_new = offset[index]
-                confidence_new = confidence[index]
-                landmark = landmarks[index]
-
-                x1 = box[0]
-                y1 = box[1]
-                x2 = box[2]
-                y2 = box[3]
-
-                w = x2 - x1
-                h = y2 - y1
-
-                x1_real = x1 + w * offset_new[0]
-                y1_real = y1 + h * offset_new[1]
-                x2_real = x2 + w * offset_new[2]
-                y2_real = y2 + h * offset_new[3]
-
-                landmark_x1, landmark_y1 = landmark[0], landmark[1]
-                landmark_x2, landmark_y2 = landmark[2], landmark[3]
-                landmark_x3, landmark_y3 = landmark[4], landmark[5]
-                landmark_x4, landmark_y4 = landmark[6], landmark[7]
-                landmark_x5, landmark_y5 = landmark[8], landmark[9]
-
-                landmark_x1_real, landmark_y1_real = x1 + w * landmark_x1, y1 + h * landmark_y1
-                landmark_x2_real, landmark_y2_real = x1 + w * landmark_x2, y1 + h * landmark_y2
-                landmark_x3_real, landmark_y3_real = x1 + w * landmark_x3, y1 + h * landmark_y3
-                landmark_x4_real, landmark_y4_real = x1 + w * landmark_x4, y1 + h * landmark_y4
-                landmark_x5_real, landmark_y5_real = x1 + w * landmark_x5, y1 + h * landmark_y5
-
-                if (
-                        landmark_x1_real > x1_real and landmark_y1_real > y1_real and landmark_x2_real < x2_real and landmark_y2_real < y2_real) and (
-                        landmark_x3_real > x1_real and landmark_y3_real > y1_real and landmark_x3_real < x2_real and landmark_y3_real < y2_real) and (
-                        landmark_x4_real > x1_real and landmark_y4_real > y1_real and landmark_x5_real < x2_real and landmark_y5_real < y2_real):
-                    boxes.append(
-                        [x1_real, y1_real, x2_real, y2_real, confidence_new[0], landmark_x1_real, landmark_y1_real,
-                         landmark_x2_real, landmark_y2_real, landmark_x3_real, landmark_y3_real, landmark_x4_real,
-                         landmark_y4_real, landmark_x5_real, landmark_y5_real])
+            # for index in indexs:
+            #     box = rnet_boxes[index]
+            #     offset_new = offset[index]
+            #     confidence_new = confidence[index]
+            #     landmark = landmarks[index]
+            #
+            #     x1 = box[0]
+            #     y1 = box[1]
+            #     x2 = box[2]
+            #     y2 = box[3]
+            #
+            #     w = x2 - x1
+            #     h = y2 - y1
+            #
+            #     x1_real = x1 + w * offset_new[0]
+            #     y1_real = y1 + h * offset_new[1]
+            #     x2_real = x2 + w * offset_new[2]
+            #     y2_real = y2 + h * offset_new[3]
+            #
+            #     landmark_x1, landmark_y1 = landmark[0], landmark[1]
+            #     landmark_x2, landmark_y2 = landmark[2], landmark[3]
+            #     landmark_x3, landmark_y3 = landmark[4], landmark[5]
+            #     landmark_x4, landmark_y4 = landmark[6], landmark[7]
+            #     landmark_x5, landmark_y5 = landmark[8], landmark[9]
+            #
+            #     landmark_x1_real, landmark_y1_real = x1 + w * landmark_x1, y1 + h * landmark_y1
+            #     landmark_x2_real, landmark_y2_real = x1 + w * landmark_x2, y1 + h * landmark_y2
+            #     landmark_x3_real, landmark_y3_real = x1 + w * landmark_x3, y1 + h * landmark_y3
+            #     landmark_x4_real, landmark_y4_real = x1 + w * landmark_x4, y1 + h * landmark_y4
+            #     landmark_x5_real, landmark_y5_real = x1 + w * landmark_x5, y1 + h * landmark_y5
+            #
+            #     if (
+            #             landmark_x1_real > x1_real and landmark_y1_real > y1_real and landmark_x2_real < x2_real and landmark_y2_real < y2_real) and (
+            #             landmark_x3_real > x1_real and landmark_y3_real > y1_real and landmark_x3_real < x2_real and landmark_y3_real < y2_real) and (
+            #             landmark_x4_real > x1_real and landmark_y4_real > y1_real and landmark_x5_real < x2_real and landmark_y5_real < y2_real):
+            #         boxes.append(
+            #             [x1_real, y1_real, x2_real, y2_real, confidence_new[0], landmark_x1_real, landmark_y1_real,
+            #              landmark_x2_real, landmark_y2_real, landmark_x3_real, landmark_y3_real, landmark_x4_real,
+            #              landmark_y4_real, landmark_x5_real, landmark_y5_real])
             # 不判断关键点是否在建议框中
-            # boxes = rnet_boxes[indexs]
-            # x1_array = boxes[:, 0]
-            # y1_array = boxes[:, 1]
-            # x2_array = boxes[:, 2]
-            # y2_array = boxes[:, 3]
-            #
-            # w_array = x2_array - x1_array
-            # h_array = y2_array - y1_array
-            #
-            # offset = offset[indexs]
-            # confidence = confidence[indexs]
-            # landmarks = landmarks[indexs]
-            #
-            # x1_real = x1_array + w_array * offset[:, 0]
-            # y1_real = y1_array + h_array * offset[:, 1]
-            # x2_real = x2_array + w_array * offset[:, 2]
-            # y2_real = y2_array + h_array * offset[:, 3]
-            #
-            # landmarks_x1, landmarks_y1 = x1_array + w_array * landmarks[:, 0], y1_array + h_array * landmarks[:, 1]
-            # landmarks_x2, landmarks_y2 = x1_array + w_array * landmarks[:, 2], y1_array + h_array * landmarks[:, 3]
-            # landmarks_x3, landmarks_y3 = x1_array + w_array * landmarks[:, 4], y1_array + h_array * landmarks[:, 5]
-            # landmarks_x4, landmarks_y4 = x1_array + w_array * landmarks[:, 6], y1_array + h_array * landmarks[:, 7]
-            # landmarks_x5, landmarks_y5 = x1_array + w_array * landmarks[:, 8], y1_array + h_array * landmarks[:, 9]
-            #
-            # box = np.stack([x1_real, y1_real, x2_real, y2_real, confidence[:, 0], landmarks_x1, landmarks_y1,
-            #                 landmarks_x2, landmarks_y2, landmarks_x3, landmarks_y3, landmarks_x4, landmarks_y4,
-            #                 landmarks_x5, landmarks_y5], axis=1)
-        box = np.stack(boxes)
-        return utils.NMS(box, 0.7, isMin=True)
+            boxes = rnet_boxes[indexs]
+            x1_array = boxes[:, 0]
+            y1_array = boxes[:, 1]
+            x2_array = boxes[:, 2]
+            y2_array = boxes[:, 3]
+
+            w_array = x2_array - x1_array
+            h_array = y2_array - y1_array
+
+            offset = offset[indexs]
+            confidence = confidence[indexs]
+            landmarks = landmarks[indexs]
+
+            x1_real = x1_array + w_array * offset[:, 0]
+            y1_real = y1_array + h_array * offset[:, 1]
+            x2_real = x2_array + w_array * offset[:, 2]
+            y2_real = y2_array + h_array * offset[:, 3]
+
+            landmarks_x1, landmarks_y1 = x1_array + w_array * landmarks[:, 0], y1_array + h_array * landmarks[:, 1]
+            landmarks_x2, landmarks_y2 = x1_array + w_array * landmarks[:, 2], y1_array + h_array * landmarks[:, 3]
+            landmarks_x3, landmarks_y3 = x1_array + w_array * landmarks[:, 4], y1_array + h_array * landmarks[:, 5]
+            landmarks_x4, landmarks_y4 = x1_array + w_array * landmarks[:, 6], y1_array + h_array * landmarks[:, 7]
+            landmarks_x5, landmarks_y5 = x1_array + w_array * landmarks[:, 8], y1_array + h_array * landmarks[:, 9]
+
+            boxes = np.stack([x1_real, y1_real, x2_real, y2_real, confidence[:, 0], landmarks_x1, landmarks_y1,
+                              landmarks_x2, landmarks_y2, landmarks_x3, landmarks_y3, landmarks_x4, landmarks_y4,
+                              landmarks_x5, landmarks_y5], axis=1)
+            # 判断关键点是否在建议框中
+            empty_box = []
+            for box in boxes:
+                if (box[5] > box[0] and box[6] > box[1] and box[7] < box[2] and box[8] > box[1]) and (
+                        box[9] > box[0] and box[10] > box[1] and box[9] < box[2] and box[10] < box[3]) and (
+                        box[11] > box[0] and box[12] < box[3] and box[13] < box[2] and box[14] < box[3]):
+                    empty_box.append(box)
+            boxes = np.stack(empty_box)
+        # box = np.stack(boxes)
+        return utils.NMS(boxes, 0.7, isMin=True)
 
     # 用于根据偏移量还原真实框到原图
     def backToImage(self, index, offset, scale, confidence, stride=2, side_len=12):
@@ -261,16 +268,60 @@ class Detector:
 
 
 if __name__ == '__main__':
-    detector = Detector(r"models/pnet.pth", r"models/rnet.pth", r"models/onet.pth")  # 加了五个坐标点
-    # detector = Detector(r"models_old/pnet.pth", r"models_old/rnet.pth", r"models_old/onet.pth", isCuda)# 没加五个坐标点
-    # image_path = r"F:\Photo_example\CelebA\test_image"
-    image_path = r"C:\Users\Administrator\Desktop\test"
-    image_list = os.listdir(image_path)
+    detector = Detector(r"models/pnet_depthwiseconv.pth", r"models/rnet_depthwiseconv.pth",
+                        r"models/onet_residualconv.pth")  # 加了五个关键点
+    # detector = Detector(r"models_old/pnet.pth", r"models_old/rnet.pth", r"models_old/onet.pth")# 没加五个坐标点
 
-    for path in image_list:
-        with Image.open(os.path.join(image_path, path)) as img:
-            boxes = detector.detect(img)
-            imDraw = ImageDraw.ImageDraw(img)
+    # 侦测图片
+    # # image_path = r"F:\Photo_example\CelebA\test_image"
+    # image_path = r"C:\Users\Administrator\Desktop\test"
+    # image_list = os.listdir(image_path)
+    # for path in image_list:
+    #     with Image.open(os.path.join(image_path, path)) as img:
+    #         boxes = detector.detect(img)
+    #         imDraw = ImageDraw.ImageDraw(img)
+    #         for box in boxes:
+    #             x1 = int(box[0])
+    #             y1 = int(box[1])
+    #             x2 = int(box[2])
+    #             y2 = int(box[3])
+    #             w, h = x2 - x1, y2 - y1
+    #             landmarks_x1, landmarks_y1 = int(box[5]), int(box[6])
+    #             landmarks_x2, landmarks_y2 = int(box[7]), int(box[8])
+    #             landmarks_x3, landmarks_y3 = int(box[9]), int(box[10])
+    #             landmarks_x4, landmarks_y4 = int(box[11]), int(box[12])
+    #             landmarks_x5, landmarks_y5 = int(box[13]), int(box[14])
+    #             landmarks_w1 = landmarks_x2 - landmarks_x1
+    #             landmarks_w2 = landmarks_x5 - landmarks_x4
+    #             landmarks_h1 = landmarks_y2 - landmarks_y1
+    #             landmarks_h2 = landmarks_y5 - landmarks_y4
+    #             landmarks_w_average = (landmarks_w1 + landmarks_w2) / 2
+    #             landmarks_h_average = (landmarks_h1 + landmarks_h2) / 2
+    #             w_avergae = (landmarks_w_average + w) / 2
+    #             h_avergae = (landmarks_h_average + h) / 2
+    #             x1 = landmarks_x3 - 0.6 * w_avergae
+    #             y1 = landmarks_y3 - 1.2 * h_avergae
+    #             x2 = x1 + 1.2 * w_avergae
+    #             y2 = y1 + 2.1 * h_avergae
+    #             imDraw.rectangle((x1, y1, x2, y2), outline='red', width=3)
+    #             imDraw.rectangle((landmarks_x1 - 1, landmarks_y1 - 1, landmarks_x1 + 1, landmarks_y1 + 1), fill="blue")
+    #             imDraw.rectangle((landmarks_x2 - 1, landmarks_y2 - 1, landmarks_x2 + 1, landmarks_y2 + 1), fill="blue")
+    #             imDraw.rectangle((landmarks_x3 - 1, landmarks_y3 - 1, landmarks_x3 + 1, landmarks_y3 + 1), fill="blue")
+    #             imDraw.rectangle((landmarks_x4 - 1, landmarks_y4 - 1, landmarks_x4 + 1, landmarks_y4 + 1), fill="blue")
+    #             imDraw.rectangle((landmarks_x5 - 1, landmarks_y5 - 1, landmarks_x5 + 1, landmarks_y5 + 1), fill="blue")
+    #         img.show()
+
+    # 侦测视频
+    cap = cv2.VideoCapture("video/jj.mp4")
+    while True:
+        ret, frame = cap.read()
+        if ret:
+            # 对每一帧做中值滤波，保存边缘信息降低噪声
+            frame = cv2.medianBlur(frame, 5)
+            frame_revert = frame[:, :, ::-1]
+            image_data = Image.fromarray(frame_revert, "RGB")
+            detector.detect(image_data)
+            boxes = detector.detect(image_data)
             for box in boxes:
                 x1 = int(box[0])
                 y1 = int(box[1])
@@ -290,9 +341,21 @@ if __name__ == '__main__':
                 landmarks_h_average = (landmarks_h1 + landmarks_h2) / 2
                 w_avergae = (landmarks_w_average + w) / 2
                 h_avergae = (landmarks_h_average + h) / 2
-                x1 = landmarks_x3 - 0.6 * w_avergae
-                y1 = landmarks_y3 - h_avergae
-                x2 = x1 + 1.2 * w_avergae
-                y2 = y1 + 1.8 * h_avergae
-                imDraw.rectangle((x1, y1, x2, y2), outline='red', width=3)
-            img.show()
+                x1 = int(landmarks_x3 - 0.6 * w_avergae)
+                y1 = int(landmarks_y3 - h_avergae)
+                x2 = int(x1 + 1.2 * w_avergae)
+                y2 = int(y1 + 1.8 * h_avergae)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                cv2.rectangle(frame, (landmarks_x1 - 1, landmarks_y1 - 1), (landmarks_x1 + 1, landmarks_y1 + 1),
+                              (255, 0, 0))
+                cv2.rectangle(frame, (landmarks_x2 - 1, landmarks_y2 - 1), (landmarks_x2 + 1, landmarks_y2 + 1),
+                              (255, 0, 0))
+                cv2.rectangle(frame, (landmarks_x3 - 1, landmarks_y3 - 1), (landmarks_x3 + 1, landmarks_y3 + 1),
+                              (255, 0, 0))
+                cv2.rectangle(frame, (landmarks_x4 - 1, landmarks_y4 - 1), (landmarks_x4 + 1, landmarks_y4 + 1),
+                              (255, 0, 0))
+                cv2.rectangle(frame, (landmarks_x5 - 1, landmarks_y5 - 1), (landmarks_x5 + 1, landmarks_y5 + 1),
+                              (255, 0, 0))
+            cv2.namedWindow("对的时间点", 0)
+            cv2.imshow("对的时间点", frame)
+            cv2.waitKey(1)

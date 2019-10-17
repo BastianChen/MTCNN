@@ -7,6 +7,8 @@ import PIL.Image as Image
 import PIL.ImageDraw as ImageDraw
 import os
 import time
+import cv2
+
 
 class Detector:
     def __init__(self, pnet_path, rnet_path, onet_path):
@@ -195,55 +197,61 @@ class Detector:
 
 
 if __name__ == '__main__':
-    detector = Detector(r"models/pnet.pth", r"models/rnet.pth", r"models/onet.pth")
-    image_path = r"F:\Photo_example\CelebA\test_image\0020bedfd030652e34fc101067625e43.jpg"
-    with Image.open(image_path) as img_data:
-        boxes = detector.detect(img_data)
-        imgDraw = ImageDraw.ImageDraw(img_data)
-        for box in boxes:
-            x1 = box[0]
-            y1 = box[1]
-            x2 = box[2]
-            y2 = box[3]
+    # detector = Detector(r"models/pnet.pth", r"models/rnet.pth", r"models/onet.pth")
+    # image_path = r"F:\Photo_example\CelebA\test_image\0020bedfd030652e34fc101067625e43.jpg"
+    # with Image.open(image_path) as img_data:
+    #     boxes = detector.detect(img_data)
+    #     imgDraw = ImageDraw.ImageDraw(img_data)
+    #     for box in boxes:
+    #         x1 = box[0]
+    #         y1 = box[1]
+    #         x2 = box[2]
+    #         y2 = box[3]
+    #
+    #         imgDraw.rectangle((x1, y1, x2, y2), outline="green", width=3)
+    #     img_data.show()
 
-            imgDraw.rectangle((x1, y1, x2, y2), outline="green", width=3)
-        img_data.show()
+    # img = Image.open(r"C:\Users\Administrator\Desktop\test\微信图片_20190909124341.jpg")
+    # w, h = img.size
+    # img = img.resize((int(0.33 * w), int(0.33 * h)))
+    # img.save("{}.jpg".format(r"C:\Users\Administrator\Desktop\test\1.jpg"))
 
-        # img = Image.open(r"C:\Users\Administrator\Desktop\test\微信图片_20190909124341.jpg")
-        # w, h = img.size
-        # img = img.resize((int(0.33 * w), int(0.33 * h)))
-        # img.save("{}.jpg".format(r"C:\Users\Administrator\Desktop\test\1.jpg"))
+    # if __name__ == '__main__':
+    #     box_path = r"text/list_bbox_celeba.txt"
+    #     landmarks_path = r"text/list_landmarks_celeba.txt"
+    #     # img_path = r"TESTIMG/TESTIMG/000058.jpg"
+    #     img_path = r"TESTIMG/TESTIMG"
+    #     box_array = open(box_path, "r").readlines()
+    #     landmarks_array = open(landmarks_path, "r").readlines()
+    #     for i, (box, landmarks) in enumerate(zip(box_array, landmarks_array)):
+    #         if i < 2:
+    #             continue
+    #         box = box.strip().split()
+    #         landmarks = landmarks.strip().split()
+    #         if 10 <= i <= 70:
+    #             w_box, h_box = int(box[3]), int(box[4])
+    #             w_landmarks, h_landmarks = int(landmarks[9]) - int(landmarks[1]), int(landmarks[10]) - int(
+    #                 landmarks[2])
+    #             center_x, center_y = int(int(landmarks[1]) + 0.5 * w_landmarks), int(
+    #                 int(landmarks[2]) + 0.5 * h_landmarks)
+    #
+    #             w_average, h_average = int((w_box + w_landmarks) / 2), int((h_box + h_landmarks) / 2)
+    #
+    #             img = Image.open(os.path.join(img_path, box[0]))
+    #             img_draw = ImageDraw.ImageDraw(img)
+    #             img_draw.rectangle(
+    #                 (float(center_x - 0.6 * w_average), float(center_y - 0.72 * h_average), float(center_x + 0.65 * w_average),
+    #                  float(center_y + 0.58 * h_average)), outline="green", width=3)
+    #             img_draw.point((int(landmarks[1]), int(landmarks[2])), fill="red")
+    #             img_draw.point((int(landmarks[3]), int(landmarks[4])), fill="red")
+    #             img_draw.point((int(landmarks[5]), int(landmarks[6])), fill="red")
+    #             img_draw.point((int(landmarks[7]), int(landmarks[8])), fill="red")
+    #             img_draw.point((int(landmarks[9]), int(landmarks[10])), fill="red")
+    #             img_draw.point((center_x, center_y), fill="blue")
+    #             img.show()
 
-# if __name__ == '__main__':
-#     box_path = r"text/list_bbox_celeba.txt"
-#     landmarks_path = r"text/list_landmarks_celeba.txt"
-#     # img_path = r"TESTIMG/TESTIMG/000058.jpg"
-#     img_path = r"TESTIMG/TESTIMG"
-#     box_array = open(box_path, "r").readlines()
-#     landmarks_array = open(landmarks_path, "r").readlines()
-#     for i, (box, landmarks) in enumerate(zip(box_array, landmarks_array)):
-#         if i < 2:
-#             continue
-#         box = box.strip().split()
-#         landmarks = landmarks.strip().split()
-#         if 10 <= i <= 70:
-#             w_box, h_box = int(box[3]), int(box[4])
-#             w_landmarks, h_landmarks = int(landmarks[9]) - int(landmarks[1]), int(landmarks[10]) - int(
-#                 landmarks[2])
-#             center_x, center_y = int(int(landmarks[1]) + 0.5 * w_landmarks), int(
-#                 int(landmarks[2]) + 0.5 * h_landmarks)
-#
-#             w_average, h_average = int((w_box + w_landmarks) / 2), int((h_box + h_landmarks) / 2)
-#
-#             img = Image.open(os.path.join(img_path, box[0]))
-#             img_draw = ImageDraw.ImageDraw(img)
-#             img_draw.rectangle(
-#                 (float(center_x - 0.6 * w_average), float(center_y - 0.72 * h_average), float(center_x + 0.65 * w_average),
-#                  float(center_y + 0.58 * h_average)), outline="green", width=3)
-#             img_draw.point((int(landmarks[1]), int(landmarks[2])), fill="red")
-#             img_draw.point((int(landmarks[3]), int(landmarks[4])), fill="red")
-#             img_draw.point((int(landmarks[5]), int(landmarks[6])), fill="red")
-#             img_draw.point((int(landmarks[7]), int(landmarks[8])), fill="red")
-#             img_draw.point((int(landmarks[9]), int(landmarks[10])), fill="red")
-#             img_draw.point((center_x, center_y), fill="blue")
-#             img.show()
+    # 中值滤波测试
+    img = cv2.imread(r"F:\Photo_example\CelebA\test_image/2f.jpeg")
+    blur = cv2.medianBlur(img, 5)
+    cv2.imshow("a", blur)
+    cv2.waitKey(0)
