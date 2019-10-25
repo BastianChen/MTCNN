@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 '''该类用于编写IOU、NMS以及真实框扩充成矩形的工具函数'''
 
@@ -19,7 +20,7 @@ def IOU(box, boxes, isMin=False):
     return rate
 
 
-def NMS(boxes, threshold=0.3, isMin=False):
+def NMS(boxes, threshold=0.3, isMin=False, method=1, sigma=0.5):
     if boxes.shape[0] == 0:
         return np.array([])
     boxes = boxes[(-boxes[:, 4]).argsort()]
@@ -28,8 +29,17 @@ def NMS(boxes, threshold=0.3, isMin=False):
         first_box = boxes[0]
         other_box = boxes[1:]
         empty_boxes.append(first_box)
-        index = np.where(IOU(first_box, other_box, isMin) < threshold)
-        boxes = other_box[index]
+        ious = IOU(first_box, other_box, isMin)
+        if method == 1:  # nms
+            index = np.where(IOU(first_box, other_box, isMin) < threshold)
+            boxes = other_box[index]
+        else:  # softnms
+            weight_array = np.exp(-(ious ** 2) / sigma)
+            # 更新置信度
+            other_box[:, 4] = other_box[:, 4] * weight_array
+            index = np.where(other_box[:, 4] > threshold)
+            boxes = other_box[index]
+            boxes = boxes[(-boxes[:, 4]).argsort()]
     if boxes.shape[0] > 0:
         empty_boxes.append(boxes[0])
     return np.stack(empty_boxes)
@@ -59,8 +69,8 @@ if __name__ == '__main__':
     #     [120, 60, 160, 100, 0.86],
     #     [145, 50, 170, 90, 0.83],
     # ])
-    # result = NMS(data)
-    # print(result)
-
-    a = np.arange(12)
-    print(a[np.where(a<3)])
+    data = np.array([
+        [1, 1, 100, 101, 0.9], [5, 6, 90, 110, 0.7], [17, 19, 80, 120, 0.8], [10, 8, 115, 105, 0.98]
+    ])
+    result = NMS(data)
+    print(result)

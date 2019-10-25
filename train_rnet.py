@@ -8,7 +8,7 @@ if __name__ == '__main__':
         # trainer = train.Trainer(net, r"F:\Photo_example\CelebA\sample\24", "models/rnet.pth", True)
         # trainer = trainer.Trainer(net, r"C:\sample\24", "models/rnet.pth", True)
         # trainer = train.Trainer(net, r"C:\new_sample\24", "models/rnet.pth", True)
-        trainer = trainer.Trainer(net, r"C:\sample\24", "models/rnet_depthwiseconv.pth", True, True)
+        trainer = trainer.Trainer(net, r"C:\sample\24", "models/rnet_depthwiseconv.pth", True)
     else:
         # trainer = train.Trainer(net, r"F:\Photo_example\CelebA\sample\24", "models/rnet.pth", False)
         trainer = trainer.Trainer(net, r"C:\sample\24", "models/rnet.pth", False)

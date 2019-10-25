@@ -142,7 +142,6 @@ for size in [48]:
                         positive_text.flush()
                         crop_img_resize.save(os.path.join(positive_image_path, "{}.jpg".format(positive_count)))
                         positive_count += 1
-                    # elif rate > 0.45 and rate < 0.53:
                     elif 0.23 < rate < 0.26:
                         part_text.write(
                             "part/{0}.jpg {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15}\n"
@@ -152,13 +151,7 @@ for size in [48]:
                         part_text.flush()
                         crop_img_resize.save(os.path.join(part_image_path, "{}.jpg".format(part_count)))
                         part_count += 1
-                    # elif rate < 0.1:
-                    #     negative_text.write("negative/{0}.jpg 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n".format(negative_count))
-                    #     negative_text.flush()
-                    #     crop_img_resize.save(os.path.join(negative_image_path, "{}.jpg".format(negative_count)))
-                    #     negative_count += 1
                 # 生成负样本
-                # for _ in range(4):
                 for _ in range(5):
                     rectangle_length_negative = np.random.randint(size, np.minimum(img_w, img_h) / 2)
                     x1_negative = np.random.randint(0, img_w - rectangle_length_negative)
@@ -166,7 +159,6 @@ for size in [48]:
                     crop_box_negative = [x1_negative, y1_negative, x1_negative + rectangle_length_negative,
                                          y1_negative + rectangle_length_negative]
                     rate_negative = utils.IOU(box, np.array([crop_box_negative]))[0]
-                    # print(rate_negative)
 
                     if rate_negative < 0.1:
                         crop_img_negative = img.crop(crop_box_negative)
