@@ -31,7 +31,7 @@ def NMS(boxes, threshold=0.3, isMin=False, method=1, sigma=0.5):
         empty_boxes.append(first_box)
         ious = IOU(first_box, other_box, isMin)
         if method == 1:  # nms
-            index = np.where(IOU(first_box, other_box, isMin) < threshold)
+            index = np.where(ious < threshold)
             boxes = other_box[index]
         else:  # softnms
             weight_array = np.exp(-(ious ** 2) / sigma)
