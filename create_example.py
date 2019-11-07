@@ -99,12 +99,13 @@ for size in [48]:
 
                     # rectangle_length = np.random.randint(int(np.minimum(w, h) * 0.3), np.ceil(np.maximum(w, h) * 1))
                     rectangle_length = np.random.randint(int(np.minimum(w, h) * 0.8), np.ceil(np.maximum(w, h) * 1.25))
+                    # 真实框坐标
                     x1_new = np.maximum(center_x_new - rectangle_length * 0.5, 0)
                     y1_new = np.maximum(center_y_new - rectangle_length * 0.5, 0)
                     x2_new = x1_new + rectangle_length
                     y2_new = y1_new + rectangle_length
 
-                    # 计算偏移量
+                    # 计算偏移量（真实框相对于建议框）
                     offset_x1 = (x1 - x1_new) / rectangle_length
                     offset_y1 = (y1 - y1_new) / rectangle_length
                     offset_x2 = (x2 - x2_new) / rectangle_length
@@ -135,7 +136,7 @@ for size in [48]:
                     if rate > 0.60:
                         positive_text.write(
                             "positive/{0}.jpg {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15}\n"
-                                .format(positive_count, 1, offset_x1, offset_y1, offset_x1, offset_y2, offset_px1,
+                                .format(positive_count, 1, offset_x1, offset_y1, offset_x2, offset_y2, offset_px1,
                                         offset_py1, offset_px2, offset_py2, offset_px3, offset_py3, offset_px4,
                                         offset_py4, offset_px5, offset_py5))
                         # 刷新缓存区，防止进程意外退出或正常退出时而未执行文件的close方法，缓冲区中的内容将会丢失。
@@ -145,7 +146,7 @@ for size in [48]:
                     elif 0.23 < rate < 0.26:
                         part_text.write(
                             "part/{0}.jpg {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15}\n"
-                                .format(part_count, 2, offset_x1, offset_y1, offset_x1, offset_y2, offset_px1,
+                                .format(part_count, 2, offset_x1, offset_y1, offset_x2, offset_y2, offset_px1,
                                         offset_py1, offset_px2, offset_py2, offset_px3, offset_py3, offset_px4,
                                         offset_py4, offset_px5, offset_py5))
                         part_text.flush()
