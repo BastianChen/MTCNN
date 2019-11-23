@@ -15,7 +15,7 @@ def weight_init(m):
 class Trainer:
     def __init__(self, net, dataset_path, save_path, isCuda=True):
         self.net = net
-        self.dataset = DataLoader(datasets(dataset_path), batch_size=50000, shuffle=True, drop_last=True, num_workers=2)
+        self.dataset = DataLoader(datasets(dataset_path), batch_size=2500, shuffle=True, drop_last=True, num_workers=2)
         self.save_path = save_path
         self.isCuda = isCuda
 
@@ -82,7 +82,7 @@ class Trainer:
                 #     print("total_loss:{0},confidence_loss:{1},offset_loss:{2},landmarks_loss:{3}".format(
                 #         total_loss.item(), confidence_loss.item(), offset_loss.item(), landmarks_loss.item()))
                 #     torch.save(self.net.state_dict(), self.save_path)
-                if total_loss.item() < previous_loss:
-                    previous_loss = total_loss.item()
-                    torch.save(self.net.state_dict(), self.save_path)
+                # if total_loss.item() < previous_loss:
+                #     previous_loss = total_loss.item()
+                #     torch.save(self.net.state_dict(), self.save_path)
             epoch += 1

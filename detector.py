@@ -239,6 +239,8 @@ if __name__ == '__main__':
     # detector = Detector(r"models/pnet_normal_data_enhancement.pth", r"models/rnet_depthwiseconv.pth",
     #                     r"models/onet_residualconv.pth")  # P网络加入了数据增强，效果不好
     # detector = Detector(r"models_old/pnet.pth", r"models_old/rnet.pth", r"models_old/onet.pth")# 没加五个坐标点
+    # detector = Detector(r"models/pnet_attention.pth", r"models/rnet_depthwiseconv.pth",
+    #                     r"models/onet_residualconv.pth")  # 加了五个关键点
 
     # 用opencv侦测图片
     # image_path = r"F:\Photo_example\CelebA\test_image"

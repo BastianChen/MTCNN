@@ -12,9 +12,9 @@ box_path = r"text/list_bbox_celeba.txt"
 landmarks_path = r"text/list_landmarks_celeba.txt"
 # save_path = r"F:\Photo_example\CelebA\sample"
 # save_path = r"C:\new_sample"
-save_path = r"C:\sample"
+save_path = r"C:\sample\celeba"
 # save_path = "celebA"
-for size in [48]:
+for size in [12, 24, 48]:
     print("create {} start".format(size))
     positive_image_path = os.path.join(save_path, str(size), "positive")
     part_image_path = os.path.join(save_path, str(size), "part")
